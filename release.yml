@@ -1,0 +1,59 @@
+name: Build and release FFR Edit Companion
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Expand and commit initial source bundle
+        if: ${{ hashFiles('source-bootstrap.zip') != '' }}
+        run: |
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          import zipfile
+          with zipfile.ZipFile('source-bootstrap.zip') as archive:
+              for item in archive.infolist():
+                  path = Path(item.filename)
+                  if path.is_absolute() or '..' in path.parts:
+                      raise SystemExit('Invalid archive path')
+                  if item.is_dir() or item.filename.startswith('.github/workflows/'):
+                      continue
+                  path.parent.mkdir(parents=True, exist_ok=True)
+                  path.write_bytes(archive.read(item))
+                  path.chmod((item.external_attr >> 16) & 0o777 or 0o644)
+          PYCODE
+          git rm source-bootstrap.zip
+          git add --all
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Import complete FFR Edit 0.1.0 source'
+          git push origin HEAD:main
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+      - run: sdkmanager 'platforms;android-37.0' 'build-tools;36.0.0'
+      - name: Test pinned transport and build installable development APK
+        run: ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug
+      - name: Package APK and web companion
+        run: |
+          mkdir artifacts
+          cp app/build/outputs/apk/debug/app-debug.apk artifacts/FFR_Edit_Companion.apk
+          python3 -m zipfile -c artifacts/FFR_Edit_Web.zip web
+          cd artifacts
+          sha256sum *.apk *.zip > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FFR_Edit_Companion
+          path: artifacts/*
+      - name: Publish initial release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create v0.1.0 artifacts/* --target "$(git rev-parse HEAD)" --title "FFR Edit Companion 0.1.0" --notes "Android development APK and local web client for FFR Edit. Requires the Decky plugin on the same LAN. This initial debug-signed APK is sideloadable; later builds may require uninstall/re-pair until a stable signing key is configured. Real-device/in-game testing is still required."
