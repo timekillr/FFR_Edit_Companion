@@ -1,6 +1,10 @@
 # FFR Edit Companion
 
-Android and local browser companions for [FFR Edit](https://github.com/timekillr/FFR_Edit), a Decky save editor for Final Fantasy Resonance. Initial version 0.1.0. Saves and backups stay on the Steam Deck/Linux machine. The companion requires the plugin; it does not edit saves stored on Android.
+Android and local browser companions for [FFR Edit](https://github.com/timekillr/FFR_Edit), a Decky save editor for Final Fantasy Resonance. Version 0.2.0. Saves and backups stay on the Steam Deck/Linux machine. The companion requires the plugin; it does not edit saves stored on Android.
+
+## Changes in 0.2.0
+
+Shows verified backup receipts and corruption status, prevents a late read from reconnecting after Disconnect, cancels background reads, and gives an explicit re-pair message after revocation. The plugin's section/page state is retained across Steam QAM remounts. It requires plugin 0.2.0 for the new archive-verification command.
 
 ## Install and pair
 
@@ -9,7 +13,7 @@ Android and local browser companions for [FFR Edit](https://github.com/timekillr
 3. On the same home network, enter the machine's address (`192.168.x.x:52882`) and pairing code in the app. Compare the fingerprint with Decky, then approve pairing.
 4. Open Saves, scan, select a slot and edit. Changes are staged until Save changes. Backup now and Restore work against the machine's backup archive.
 
-The APK is a debug-signed development build for sideloading, not Play Store signed. Until a stable release-signing key is configured, a later CI build can require uninstalling the previous APK and pairing again.
+Version 0.2.0 uses a stable private release signing key, kept outside Git. Because 0.1.0 used a temporary CI debug key, Android requires a **one-time uninstall of 0.1.0** before installing 0.2.0; pair again afterward. Later releases signed with the 0.2.0 key can update normally. APK signatures are verified before delivery.
 
 For a web browser, use the HTTPS address shown in Decky. The plugin serves the companion directly on your LAN; no internet hosting or port forwarding is needed. Compare the certificate SHA-256 fingerprint with Decky before accepting the local certificate. Web clients use a secure HttpOnly cookie; Android uses certificate pinning and an encrypted Android Keystore credential. Pairings are remembered, independently revocable, and survive app restart.
 
@@ -20,12 +24,12 @@ Connection has manual Reconnect/Disconnect. Automatic read retries stop after te
 JDK 17 and Android SDK 37.0/build-tools 36.0.0:
 
 ```sh
-./gradlew :app:testDebugUnitTest :app:assembleDebug
+./gradlew :app:testDebugUnitTest :app:assembleRelease
 ```
 
 The web UI is `app/src/main/assets/` (identical to plugin web UI except Android uses its native pinned transport instead of browser-bridge.js). `web/` is a standalone distributable copy for bundling with the plugin; it must be served by the plugin's same-origin HTTPS endpoint, not opened as a file or hosted on a separate public origin.
 
-The release workflow produces a sideloadable APK and web ZIP after tests. A real device and in-game save-load test is still required for the initial release. Use a spare save slot initially.
+CI produces an unsigned release APK and web ZIP after tests; the maintainer signs and verifies the final APK with the stable private release key before attaching it to the public release. Never install or publish the unsigned artifact as the final APK. A real device and in-game save-load test is still required for the initial release. Use a spare save slot initially.
 
 ## Credits
 
